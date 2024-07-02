@@ -1,6 +1,6 @@
 # gitformation
 
-Binds git commit changes with AWS CloudFormation stack operations, by parseing a git log to determine which files
+Binds git commit changes with AWS CloudFormation stack operations, by parsing a git log to determine which files
 have been created, modified and/or deleted since the last commit. For each change, the corresponding AWS CloudFormation
 stack operation is executed. For new files, create-stack, updated files, update-stack, and deleted files, delete-stack.
 
