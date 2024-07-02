@@ -1,0 +1,18 @@
+[
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "nonprod"
+  },
+  {
+    "ParameterKey": "Repository",
+    "ParameterValue": "jeremyhahn/gitformation"
+  },
+   {
+    "ParameterKey": "Branch",
+    "ParameterValue": "develop"
+  },
+  {
+    "ParameterKey": "Owner",
+    "ParameterValue": "jeremyhahn"
+  }
+]

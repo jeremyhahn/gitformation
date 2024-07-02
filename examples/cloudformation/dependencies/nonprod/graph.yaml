@@ -1,0 +1,8 @@
+- cake: eggs
+- cake: flour
+- eggs: chickens
+- flour: grain
+- chickens: grain
+- grain: soil
+- grain: water
+- chickens: water

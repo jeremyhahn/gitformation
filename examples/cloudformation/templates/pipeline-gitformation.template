@@ -1,0 +1,297 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: AWS CodePipeline that retrieves the GitFormation source code from the
+             specified BitBucket branch, builds, tests, and publishes the binary
+             it to the CodeBuild artifacts bucket.
+
+Parameters:
+
+  Environment:
+    Type: String
+    Description: The deployment environment
+    Default: nonprod
+
+  Repository:
+    Type: String
+    Description: The bitbucket repo to build
+    MinLength: 1
+    MaxLength: 255
+    Default: jeremyhahn/gitformation
+
+  Branch:
+    Type: String
+    Description: The repository branch to build
+    MinLength: 1
+    MaxLength: 255
+    Default: develop
+
+  BitBucketConnectionArn:
+    Type: "AWS::SSM::Parameter::Value<String>"
+    Description: The CodeStar BitBucket connection ARN
+    Default: /codestar/bitbucket/nonprod/arn
+
+  CodeBuildArtifactBucketName:
+    Type: "AWS::SSM::Parameter::Value<String>"
+    Description: The CodeBuild S3 artifact bucket name
+    Default: /s3/codebuild/artifact-bucket/nonprod/name
+
+  CodeBuildArtifactBucketArn:
+    Type: "AWS::SSM::Parameter::Value<String>"
+    Description: The CodeBuild S3 artifact bucket ARN
+    Default: /s3/codebuild/artifact-bucket/nonprod/arn
+
+  OwnerTag:
+    Type: String
+    Description: The value to assign to the Owner tag
+    Default: user@example.com
+
+
+Resources:
+
+  GlueAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 
+        - lh-${Environment}-gj-scripts-${safeBranchName}-${AWS::Region}-${AWS::AccountId}
+        - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+      Tags:
+        - Key: Name
+          Value: !Sub 
+            - lh-${Environment}-gj-scripts-${safeBranchName}-${AWS::Region}-${AWS::AccountId}
+            - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Owner
+          Value: !Ref OwnerTag
+        - Key: Project
+          Value: DAP
+        - Key: BusinessUnit
+          Value: Finance
+
+  GlueCodePipelineProject:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub 
+        - lh-${Environment}-cp-${DataProductName}-etl-${safeBranchName}
+        - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                ConnectionArn: !Ref BitBucketConnectionArn
+                FullRepositoryId: !Ref Repository
+                BranchName: !Ref Branch
+                OutputArtifactFormat: "CODE_ZIP"
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+                PrimarySource: SourceOutput
+#                EnvironmentVariables: '[{"name":"TEST_VARIABLE","value":"TEST_VALUE","type":"PLAINTEXT"},{"name":"ParamStoreTest","value":"PARAMETER_NAME","type":"PARAMETER_STORE"}]'
+              RunOrder: 1
+      ArtifactStore:
+        Location: !Ref CodeBuildArtifactBucketName
+        Type: S3
+      Tags:
+      - Key: Name
+        Value: !Sub 
+          - lh-${Environment}-cp-${DataProductName}-etl-${safeBranchName}
+          - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+      - Key: Environment
+        Value: !Ref Environment
+      - Key: Owner
+        Value: !Ref OwnerTag
+      - Key: Project
+        Value: GtN
+      - Key: BusinessUnit
+        Value: Finance
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub 
+            - lh-${Environment}-cp-${DataProductName}-service-role-${safeBranchName}
+            - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - codestar-connections:UseConnection
+                Resource: !Ref BitBucketConnectionArn
+                Effect: Allow
+              - Action:
+                  - elasticbeanstalk:*
+                  - ec2:*
+                  - elasticloadbalancing:*
+                  - autoscaling:*
+                  - cloudwatch:*
+                  - s3:*
+                  - ecs:*
+                Resource: "*"
+                Effect: Allow
+              - Action:
+                  - codebuild:GetBranch
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuildBatches
+                  - codebuild:StartBuildBatch
+                Resource: "*"
+                Effect: Allow
+              - Action:
+                  - iam:PassRole
+                Resource: "*"
+                Effect: Allow
+                Condition:
+                  StringEqualsIfExists:
+                    iam:PassedToService:
+                      - cloudformation.amazonaws.com
+                      - ec2.amazonaws.com
+                      - ecs-tasks.amazonaws.com
+        - PolicyName: !Sub 
+            - lh-${Environment}-cp-${DataProductName}-ssm-parameterstore-policy-${safeBranchName}
+            - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeParameters
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+      Tags:
+      - Key: Name
+        Value: !Sub 
+          - lh-${Environment}-cp-${DataProductName}-service-role-${safeBranchName}
+          - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+      - Key: Environment
+        Value: !Ref Environment
+      - Key: Owner
+        Value: !Ref OwnerTag
+      - Key: Project
+        Value: GtN
+      - Key: BusinessUnit
+        Value: Finance
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub 
+        - lh-${Environment}-cb-${DataProductName}-etl-${safeBranchName}
+        - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+      Description: CodeBuild project to build and deploy Glue scripts to S3
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+            version: 0.2
+            phases:
+              build:
+                commands:
+                  - rm -rf .gitignore readme.md
+                  - aws s3 sync . s3://$GLUE_ASSETS_BUCKET/${DataProductName}App --delete
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:4.0
+        EnvironmentVariables:
+        - Name: GLUE_ASSETS_BUCKET
+          Type: PLAINTEXT
+          Value: !Ref GlueAssetsBucket
+      TimeoutInMinutes: 10
+      Tags:
+        - Key: Name
+          Value: !Sub 
+            - lh-${Environment}-cb-${DataProductName}-service-role-${safeBranchName}
+            - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Owner
+          Value: !Ref OwnerTag
+        - Key: Project
+          Value: GtN
+        - Key: BusinessUnit
+          Value: Finance
+
+  CodeBuildServiceRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: [codebuild.amazonaws.com]
+          Version: '2012-10-17'
+        Path: /
+        Policies:
+          - PolicyName: !Sub 
+              - lh-${Environment}-cb-${DataProductName}-etl-${safeBranchName}
+              - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/lh-${Environment}-cb-${DataProductName}-etl*:*'
+                  Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                - Effect: Allow
+                  Action:
+                  - s3:*
+                  Resource:
+                  - !GetAtt GlueAssetsBucket.Arn
+                  - !Sub ['${glueAssetsBucketArn}/*', glueAssetsBucketArn: !GetAtt GlueAssetsBucket.Arn]
+                  - !Ref CodeBuildArtifactBucketArn
+                  - !Sub ['${codeBuildArtifactBucketArn}/lh-${Environment}-cp-${DataProductName}-*', codeBuildArtifactBucketArn: !Ref CodeBuildArtifactBucketArn]
+        Tags:
+          - Key: Name
+            Value: !Sub
+              - lh-${Environment}-cb-${DataProductName}-service-role-${safeBranchName}
+              - {safeBranchName: !Join ["-",  !Split ["/", !Ref Branch ] ] }
+          - Key: Environment
+            Value: !Ref Environment
+          - Key: Owner
+            Value: !Ref OwnerTag
+          - Key: Project
+            Value: GtN
+          - Key: BusinessUnit
+            Value: Finance

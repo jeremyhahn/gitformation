@@ -1,0 +1,130 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug (--parallel=false)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--parallel=false"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug (--parallel=false, --exit-on-error=false)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--parallel=false", "--exit-on-error=false"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug (--dry-run)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--dry-run=true", "--commit=3b0b787e0c5929e20a9c69521eb5aad5fad4e9a7"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug (--filter=cmd --dry-run)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--filter=internal/*", "--dry-run=true"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug (--output=json)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--format=json", "--exit-on-error=false", "--wait=true"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug --profile option",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--profile=foo"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug --profile-prefix option",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks", "--debug", "--profile-prefix=test"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug filter command",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["filter", "--debug", "--filter=examples/*"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug filter (match all)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["filter", "--debug", "--filter=[a-zA-Z0-9./]+"],
+            "debugAdapter": "legacy"
+        },
+        {
+            "name": "Debug parameters file",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "port": 2345,
+            "host": "127.0.0.1",
+            "program": "${workspaceRoot}",
+            "args": ["manage-stacks",
+                     "--debug", 
+                     "--parameter-files=./examples/cloudformation/parameters",
+                     "--filter=[a-zA-Z0-9./]+", 
+                     "--dry-run"],
+            "debugAdapter": "legacy"
+        }
+    ]
+}
